@@ -1,0 +1,6 @@
+{
+  "extends": "@most/eslint-config-most",
+  "rules": {
+    "comma-dangle": "off"
+  }
+}
