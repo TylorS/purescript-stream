@@ -25,24 +25,26 @@ export class Scheduler {
   }
 
   asap (task) {
-    return this.schedule(0, -1, task)
+    return this.schedule(0)(-1)(task)
   }
 
-  delay (delay, task) {
-    return this.schedule(delay, -1, task)
+  delay (delay) {
+    return task => this.schedule(delay)(-1)(task)
   }
 
-  periodic (period, task) {
-    return this.schedule(0, period, task)
+  periodic (period) {
+    return task => this.schedule(0)(period)(task)
   }
 
-  schedule (delay, period, task) {
-    const now = this.now()
-    const st = new ScheduledTask(now + Math.max(0, delay), period, task, this)
+  schedule (delay) {
+    return period => task => {
+      const now = this.now()
+      const st = new ScheduledTask(now + Math.max(0, delay), period, task, this)
 
-    this.timeline.add(st)
-    this._scheduleNextRun(now)
-    return st
+      this.timeline.add(st)
+      this._scheduleNextRun(now)
+      return st
+    }
   }
 
   cancel (task) {

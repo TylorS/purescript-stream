@@ -7,9 +7,7 @@ export class Disposable {
   constructor (dispose, data) {
     this._dispose = dispose
     this._data = data
-  }
 
-  dispose () {
-    return this._dispose(this._data)
+    this.dispose = () => dispose(data)
   }
 }

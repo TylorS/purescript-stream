@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "yarn build && pulp run",
     "build": "rollup -c && pulp build",
     "changelog": "conventional-changelog -i CHANGELOG.md -s -r 0 -p angular",
     "clean": "rimraf lib lib.es2015",

@@ -1,2 +1,6 @@
-export * from './tap'
 export * from './drain'
+export * from './mergeConcurrently'
+export * from './combine'
+export * from './merge'
+export * from './concat'
+export * from './switch'

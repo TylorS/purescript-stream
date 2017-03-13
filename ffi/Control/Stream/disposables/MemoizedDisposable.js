@@ -8,7 +8,7 @@ export class MemoizedDisposable {
   dispose () {
     if (!this.disposed) {
       this.disposed = true
-      this.value = disposeSafely(this.disposable)
+      this.value = this.disposable.dispose()
       this.disposable = undefined
     }
 

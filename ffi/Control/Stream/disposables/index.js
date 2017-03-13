@@ -9,4 +9,4 @@ export const createDisposable = curry2((dispose, data) => new MemoizedDisposable
 export const emptyDisposable = new Disposable(id, undefined)
 
 export const disposeAll = disposables =>
-  createDisposable(map(disposeSafely, disposables), disposables)
+  createDisposable(curry2(map)(disposeSafely), disposables)

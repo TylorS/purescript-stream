@@ -2,15 +2,23 @@
 /** @author Brian Cavalier */
 /** @author John Hann */
 
+import { curry2, curry3, id as identity } from '@most/prelude'
+
 import { LinkedList } from '../LinkedList'
-import { MemoizedDisosable } from '../disposables/MemoizedDisposable'
-import { id as identity } from '@most/prelude'
+import { MemoizedDisposable } from '../disposables/MemoizedDisposable'
+import { Stream } from '../Stream'
 
-export const mergeConcurrently = (concurrency, stream) =>
-  mergeMapConcurrently(identity, concurrency, stream)
+export const flatMap =
+  curry2((stream, f) => mergeMapConcurrently(f, Infinity, stream))
 
-export const mergeMapConcurrently = (f, concurrency, stream) =>
-  new MergeConcurrently(f, concurrency, stream)
+export const mergeConcurrently = curry2((concurrency, stream) =>
+  mergeMapConcurrently(identity, concurrency, stream))
+
+export const join =
+  mergeConcurrently(Infinity)
+
+export const mergeMapConcurrently = curry3((f, concurrency, stream) =>
+  new Stream(new MergeConcurrently(f, concurrency, stream.source)))
 
 class MergeConcurrently {
   constructor (f, concurrency, source) {
@@ -19,8 +27,8 @@ class MergeConcurrently {
     this.source = source
   }
 
-  run (sink, scheduler) {
-    return new Outer(this.f, this.concurrency, this.source, sink, scheduler)
+  run (sink) {
+    return scheduler => new Outer(this.f, this.concurrency, this.source, sink, scheduler)
   }
 }
 
@@ -32,12 +40,12 @@ class Outer {
     this.scheduler = scheduler
     this.pending = []
     this.current = new LinkedList()
-    this.disposable = new MemoizedDisosable(source.run(this, scheduler))
+    this.disposable = new MemoizedDisposable(source.run(this)(scheduler))
     this.active = true
   }
 
-  event (t, x) {
-    this._addInner(t, x)
+  event (t) {
+    return x => this._addInner(t, x)
   }
 
   _addInner (t, x) {
@@ -62,10 +70,10 @@ class Outer {
     this.current.add(innerSink)
   }
 
-  end (t, x) {
+  end (t) {
     this.active = false
     this.disposable.dispose()
-    this._checkEnd(t, x)
+    this._checkEnd(t)
   }
 
   dispose () {
@@ -75,26 +83,25 @@ class Outer {
     this.current.dispose()
   }
 
-  _endInner (t, x, inner) {
+  _endInner (t, inner) {
     this.current.remove(inner)
     inner.dispose()
 
     if (this.pending.length === 0) {
-      this._checkEnd(t, x)
+      this._checkEnd(t)
     } else {
       this._startInner(t, this.pending.shift())
     }
   }
 
-  _checkEnd (t, x) {
+  _checkEnd (t) {
     if (!this.active && this.current.isEmpty()) {
-      this.sink.end(t, x)
+      this.sink.end(t)
     }
   }
 }
 
-const mapAndRun = (f, x, sink, scheduler) =>
-  f(x).run(sink, scheduler)
+const mapAndRun = (f, x, sink, scheduler) => f(x).source.run(sink)(scheduler)
 
 class Inner {
   constructor (time, outer, sink) {
@@ -105,16 +112,12 @@ class Inner {
     this.disposable = void 0
   }
 
-  event (t, x) {
-    this.sink.event(Math.max(t, this.time), x)
+  event (t) {
+    return x => this.sink.event(Math.max(t, this.time))(x)
   }
 
-  end (t, x) {
-    this.outer._endInner(Math.max(t, this.time), x, this)
-  }
-
-  error (t, e) {
-    this.outer.error(Math.max(t, this.time), e)
+  end (t) {
+    this.outer._endInner(Math.max(t, this.time), this)
   }
 
   dispose () {

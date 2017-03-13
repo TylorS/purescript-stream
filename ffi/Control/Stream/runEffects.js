@@ -11,6 +11,8 @@ function runSource (source, scheduler) {
   const observer = new RunEffectsSink(disposable)
 
   disposable.setDisposable(source.run(observer)(scheduler))
+
+  return {}
 }
 
 var RunEffectsSink = function RunEffectsSink (disposable) {

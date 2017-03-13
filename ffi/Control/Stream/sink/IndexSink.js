@@ -15,10 +15,10 @@ export class IndexSink {
     }
   }
 
-  end (t, x) {
+  end (t) {
     if (!this.active) return
 
     this.active = false
-    this.sink.end(t, { index: this.index, value: x })
+    this.sink.end(t, { index: this.index })
   }
 }
