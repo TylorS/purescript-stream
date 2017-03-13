@@ -1,7 +1,6 @@
 module Control.Stream
   ( STREAM
   , EffStream
-  , PureStream
   , Stream
   , Source
   , Sink
@@ -25,6 +24,7 @@ module Control.Stream
   , createSink
   , createCombinator
   , createEventCombinator
+  , createEndCombinator
   , getSource
   , runSource
   -- Combinators
@@ -45,6 +45,7 @@ module Control.Stream
   , switch
   , constant
   , scan
+  , startWith
   -- Stream factories
   , just
   , fromArray
@@ -74,7 +75,6 @@ newtype Time = Time Int
 foreign import data STREAM :: !
 
 type EffStream e a = Eff (stream :: STREAM | e) a
-type PureStream a = EffStream () a
 
 newtype Stream a = Stream { source :: Source a }
 
