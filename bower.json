@@ -10,7 +10,8 @@
     "purescript-eff": "^2.0.0",
     "purescript-prelude": "^2.5.0",
     "purescript-refs": "^2.0.0",
-    "purescript-maybe": "^2.1.1"
+    "purescript-maybe": "^2.1.1",
+    "purescript-partial": "^1.2.0"
   },
   "devDependencies": {
     "purescript-console": "^2.0.0",

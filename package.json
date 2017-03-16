@@ -1,5 +1,5 @@
 {
-  "name": "purescript-tempest",
+  "name": "purescript-stream",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
@@ -34,8 +34,5 @@
     "purescript": "^0.10.7",
     "uglify-js": "^2.8.11",
     "validate-commit-msg": "^2.11.2"
-  },
-  "dependencies": {
-    "@most/prelude": "^1.5.0"
   }
 }
