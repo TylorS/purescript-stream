@@ -12,7 +12,16 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 // append :: a -> [a] -> [a]
 // a with x appended
+function append (x, a) {
+  var l = a.length;
+  var b = new Array(l + 1);
+  for (var i = 0; i < l; ++i) {
+    b[i] = a[i];
+  }
 
+  b[l] = x;
+  return b
+}
 
 // drop :: Int -> [a] -> [a]
 // drop first n elements
@@ -80,7 +89,37 @@ function reduce (f, z, a) {
 
 // remove :: Int -> [a] -> [a]
 // remove element at index
+function remove (i, a) {  // eslint-disable-line complexity
+  if (i < 0) {
+    throw new TypeError('i must be >= 0')
+  }
 
+  var l = a.length;
+  if (l === 0 || i >= l) { // exit early if index beyond end of array
+    return a
+  }
+
+  if (l === 1) { // exit early if index in bounds and length === 1
+    return []
+  }
+
+  return unsafeRemove(i, a, l - 1)
+}
+
+// unsafeRemove :: Int -> [a] -> Int -> [a]
+// Internal helper to remove element at index
+function unsafeRemove (i, a, l) {
+  var b = new Array(l);
+  var j;
+  for (j = 0; j < i; ++j) {
+    b[j] = a[j];
+  }
+  for (j = i; j < l; ++j) {
+    b[j] = a[j + 1];
+  }
+
+  return b
+}
 
 // removeAll :: (a -> boolean) -> [a] -> [a]
 // remove all elements matching a predicate
@@ -491,6 +530,7 @@ var endTask = function (sink) { return propagateTask(runEnd, void 0, sink); };
 
 var PropagateTask = function PropagateTask (run, value, sink) {
   var active = true;
+  this.sink = sink;
 
   this.dispose = function () { active = false; };
   this.run = function (t) {
@@ -1099,6 +1139,223 @@ Segment.prototype._dispose = function (t) {
   this.disposable.dispose();
 };
 
+var skipRepeatsWith = function (equals) { return function (stream) { return new Stream(new SkipRepeats(equals, stream)); }; };
+
+var SkipRepeats = function SkipRepeats (equals, source) {
+  this.equals = equals;
+  this.source = source;
+};
+
+SkipRepeats.prototype.run = function run (sink) {
+    var this$1 = this;
+
+  return function (scheduler) { return this$1.source.run(new SkipRepeatsSink(this$1.equals, sink), scheduler); }
+};
+
+var SkipRepeatsSink = function SkipRepeatsSink (equals, sink) {
+  this.equals = equals;
+  this.value = void 0;
+  this.init = true;
+};
+
+SkipRepeatsSink.prototype.event = function event (t) {
+    var this$1 = this;
+
+  return function (x) {
+    if (this$1.init) {
+      this$1.init = false;
+      this$1.value = x;
+      this$1.sink.event(t, x);
+    } else if (!this$1.equals(this$1.value)(x)) {
+      this$1.value = x;
+      this$1.sink.event(t)(x);
+    }
+  }
+};
+
+SkipRepeatsSink.prototype.end = function end (t) {
+  this.sink.end(t);
+};
+
+var delay = function (delayTime) { return function (stream) { return delayTime <= 0 ? stream : new Stream(new Delay(delayTime, stream.source)); }; };
+
+var Delay = function Delay (dt, source) {
+  this.dt = dt;
+  this.source = source;
+};
+
+Delay.prototype.run = function run (sink) {
+    var this$1 = this;
+
+  return function (scheduler) {
+    var delaySink = new DelaySink(this$1.dt, sink, scheduler);
+    return disposeAll([delaySink, this$1.source.run(delaySink)(scheduler)])
+  }
+};
+
+var DelaySink = function DelaySink (dt, sink, scheduler) {
+  this.dt = dt;
+  this.sink = sink;
+  this.scheduler = scheduler;
+};
+
+DelaySink.prototype.dispose = function dispose () {
+    var this$1 = this;
+
+  this.scheduler.cancelAll(function (task) { return task.sink === this$1.sink; });
+};
+
+DelaySink.prototype.event = function event (t) {
+    var this$1 = this;
+
+  return function (x) { return this$1.scheduler.delay(this$1.dt)(eventTask(x)(this$1.sink)); }
+};
+
+DelaySink.prototype.end = function end (t) {
+  this.scheduler.delay(this.dt)(endTask(this.sink));
+};
+
+var dispose$1 = function (disposable) { return disposable.dispose(); };
+
+var emptyDisposable$1 = {
+  dispose: function dispose () {}
+};
+
+var MulticastDisposable = function MulticastDisposable (source, sink) {
+  this.source = source;
+  this.sink = sink;
+  this.disposed = false;
+};
+
+MulticastDisposable.prototype.dispose = function dispose () {
+  if (this.disposed) {
+    return
+  }
+  this.disposed = true;
+  var remaining = this.source.remove(this.sink);
+  return remaining === 0 && this.source._dispose()
+};
+
+var MulticastSource = function MulticastSource (source) {
+  this.source = source;
+  this.sinks = [];
+  this._disposable = emptyDisposable$1;
+};
+
+MulticastSource.prototype.run = function run (sink) {
+    var this$1 = this;
+
+  return function (scheduler) {
+    var n = this$1.add(sink, scheduler);
+    if (n === 1) {
+      this$1._disposable = this$1.source.run(this$1)(scheduler);
+    }
+    return new MulticastDisposable(this$1, sink)
+  }
+};
+
+MulticastSource.prototype._dispose = function _dispose () {
+  var disposable = this._disposable;
+  this._disposable = emptyDisposable$1;
+  return Promise.resolve(disposable).then(dispose$1)
+};
+
+MulticastSource.prototype.add = function add (sink) {
+  this.sinks = append(sink, this.sinks);
+  return this.sinks.length
+};
+
+MulticastSource.prototype.remove = function remove$1 (sink) {
+  var i = findIndex(sink, this.sinks);
+  // istanbul ignore next
+  if (i >= 0) {
+    this.sinks = remove(i, this.sinks);
+  }
+
+  return this.sinks.length
+};
+
+MulticastSource.prototype.event = function event (time) {
+    var this$1 = this;
+
+  return function (value) {
+    var s = this$1.sinks;
+    if (s.length === 1) {
+      return s[0].event(time)(value)
+    }
+    for (var i = 0; i < s.length; ++i) {
+      s[i].event(time)(value);
+    }
+  }
+};
+
+MulticastSource.prototype.end = function end (time) {
+  var s = this.sinks;
+  for (var i = 0; i < s.length; ++i) {
+    s[i].end(time);
+  }
+};
+
+var HoldSource = (function (MulticastSource$$1) {
+  function HoldSource (source, bufferSize) {
+    MulticastSource$$1.call(this, source);
+    this.bufferSize = bufferSize;
+    this.has = false;
+    this.buffer = [];
+  }
+
+  if ( MulticastSource$$1 ) HoldSource.__proto__ = MulticastSource$$1;
+  HoldSource.prototype = Object.create( MulticastSource$$1 && MulticastSource$$1.prototype );
+  HoldSource.prototype.constructor = HoldSource;
+
+  HoldSource.prototype.add = function add (sink, scheduler) {
+    if (this.has) {
+      pushEvents(this.buffer, sink, scheduler);
+    }
+
+    return MulticastSource$$1.prototype.add.call(this, sink, scheduler)
+  };
+
+  HoldSource.prototype.event = function event (time) {
+    var this$1 = this;
+
+    return function (value) {
+      this$1.has = true;
+      this$1.buffer = dropAndAppend(value, this$1.buffer, this$1.bufferSize);
+
+      return MulticastSource$$1.prototype.event.call(this$1, time)(value)
+    }
+  };
+
+  return HoldSource;
+}(MulticastSource));
+
+function pushEvents (buffer, sink, scheduler) {
+  var length = buffer.length;
+
+  for (var i = 0; i < length; ++i) {
+    sink.event(scheduler.now(), buffer[i]);
+  }
+}
+
+function dropAndAppend (value, buffer, bufferSize) {
+  if (buffer.length === bufferSize) {
+    return append(value, drop(1, buffer))
+  }
+
+  return append(value, buffer)
+}
+
+function multicast (stream) {
+  var source = stream.source;
+
+  return source instanceof MulticastSource
+    ? stream
+    : new Stream(new MulticastSource(source))
+}
+
+var hold = function (bufferSize) { return function (stream) { return new Stream(new HoldSource(stream.source, bufferSize)); }; };
+
 /*       */
 
 exports.createDisposable = createDisposable;
@@ -1121,3 +1378,7 @@ exports.merge = merge;
 exports.concat = concat;
 exports.continueWith = continueWith;
 exports.switch = switchLatest;
+exports.skipRepeatsWith = skipRepeatsWith;
+exports.delay = delay;
+exports.multicast = multicast;
+exports.hold = hold;

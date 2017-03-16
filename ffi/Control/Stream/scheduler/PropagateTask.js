@@ -11,6 +11,7 @@ export const endTask = sink => propagateTask(runEnd, void 0, sink)
 class PropagateTask {
   constructor (run, value, sink) {
     let active = true
+    this.sink = sink
 
     this.dispose = () => { active = false }
     this.run = t => {
