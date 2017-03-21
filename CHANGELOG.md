@@ -1,3 +1,13 @@
+<a name="0.2.0"></a>
+# [0.2.0](https://github.com/TylorS/purescript-stream/compare/v0.1.0...v0.2.0) (2017-03-21)
+
+
+### Bug Fixes
+
+* **Stream:** add missing filter import ([d4e1c8e](https://github.com/TylorS/purescript-stream/commit/d4e1c8e))
+
+
+
 <a name="0.1.0"></a>
 # [0.1.0](https://github.com/TylorS/purescript-stream/compare/6b75d2f...v0.1.0) (2017-03-16)
 
