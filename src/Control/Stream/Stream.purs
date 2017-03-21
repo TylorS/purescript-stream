@@ -13,6 +13,7 @@ module Control.Stream.Stream
   , tapEvent
   , tapEnd
   , fromArray
+  , filter
   , take
   , skip
   , constant

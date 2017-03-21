@@ -21,6 +21,7 @@ import Control.Stream.Stream
   , tapEvent
   , tapEnd
   , fromArray
+  , filter
   , take
   , skip
   , constant
